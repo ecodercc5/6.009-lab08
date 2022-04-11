@@ -96,7 +96,7 @@ def tokenize(source):
     is_comment = False
 
     # loop thr the chars in source
-    for i, char in enumerate(source):
+    for char in source:
         if char in delimiters:
             # put current token into list of tokens if it exists
             if current_token:
@@ -153,6 +153,10 @@ def parse(tokens):
 
     # base case -> one token
     if len(tokens) == 1:
+        # edge case -> single parenthesis
+        if tokens[0] == "(" or tokens[0] == ")":
+            raise CarlaeSyntaxError()
+
         return number_or_symbol(tokens[0])
 
     # check if enclosed in parenthesis
@@ -162,12 +166,12 @@ def parse(tokens):
     # recursive case
     groups = _group_tokens(tokens[1:-1])
 
-    parsed_expression = []
+    parsed_expression = [parse(group) for group in groups]
 
-    for group in groups:
-        parsed_group = parse(group)
+    # for group in groups:
+    #     parsed_group = parse(group)
 
-        parsed_expression.append(parsed_group)
+    #     parsed_expression.append(parsed_group)
 
     return parsed_expression
 
@@ -218,9 +222,29 @@ def _group_tokens(tokens):
 ######################
 
 
+def multiply(args):
+    value = 1
+
+    for arg in args:
+        value *= arg
+
+    return value
+
+
+def divide(args):
+    value = args[0]
+
+    for arg in args[1:]:
+        value /= arg
+
+    return value
+
+
 carlae_builtins = {
     "+": sum,
     "-": lambda args: -args[0] if len(args) == 1 else (args[0] - sum(args[1:])),
+    "*": multiply,
+    "/": divide,
 }
 
 
@@ -238,7 +262,40 @@ def evaluate(tree):
         tree (type varies): a fully parsed expression, as the output from the
                             parse function
     """
-    raise NotImplementedError
+    if tree == []:
+        return []
+
+    # check if tree is a number or a builtin carlae type
+    if isinstance(tree, int) or isinstance(tree, float):
+        return tree
+
+    if isinstance(tree, str):
+        builtin_object = carlae_builtins.get(tree)
+
+        if builtin_object:
+            return builtin_object
+
+        raise CarlaeNameError()
+
+    # evaluate each expression in the tree
+    evaluated_expressions = [evaluate(expression) for expression in tree]
+
+    # if length of evaluated expressions is 1 return that value
+    if len(evaluated_expressions) == 1:
+        return evaluated_expressions[0]
+
+    # check if first evaluated expression is a function
+    func = evaluated_expressions[0]
+
+    if not callable(func):
+        raise CarlaeEvaluationError()
+
+    # call the func on rest of evaluated expressions
+    evaluated = func(evaluated_expressions[1:])
+
+    # print(evaluated)
+
+    return evaluated
 
 
 if __name__ == "__main__":
@@ -248,27 +305,19 @@ if __name__ == "__main__":
     # uncommenting the following line will run doctests from above
     # doctest.testmod()
 
-    expression = (
-        "#add the numbers 2 and 3\n"
-        + "(+ # this expression\n"
-        + " 2     # spans multiple\n"
-        + " 3  # lines\n"
-        + "\n"
-        + ")"
-    )
+    while True:
+        raw_carlae_str = input("in> ")
 
-    # expression = "(cat (dog (tomato)))"
+        if raw_carlae_str == "EXIT":
+            break
 
-    # expression = "(:= circle-area (function (r) (* 3.14 (* r r))))"
+        try:
+            tokens = tokenize(raw_carlae_str)
+            parsed = parse(tokens)
+            evaluated = evaluate(parsed)
 
-    expression = ")(spam)("
+            print(f"out> {evaluated}")
 
-    # print(tokenize(expression) == ["(", "+", "2", "3", ")"])
-
-    tokens = tokenize(expression)
-
-    # print(_group_tokens(tokens[1:-1]))
-
-    # find_opening_and_enclosing_parenthesis(tokens)
-
-    print(parse(tokens))
+        except Exception as e:
+            exception_name = e.__class__.__name__
+            print(exception_name)
