@@ -159,19 +159,10 @@ def parse(tokens):
 
         return number_or_symbol(tokens[0])
 
-    # check if enclosed in parenthesis
-    if tokens[0] != "(" or tokens[-1] != ")":
-        raise CarlaeSyntaxError()
-
     # recursive case
-    groups = _group_tokens(tokens[1:-1])
+    groups = _group_tokens(tokens)
 
     parsed_expression = [parse(group) for group in groups]
-
-    # for group in groups:
-    #     parsed_group = parse(group)
-
-    #     parsed_expression.append(parsed_group)
 
     return parsed_expression
 
@@ -179,11 +170,16 @@ def parse(tokens):
 def _group_tokens(tokens):
     """ """
 
+    # check if enclosed in parenthesis
+    if tokens[0] != "(" or tokens[-1] != ")":
+        raise CarlaeSyntaxError()
+
+    inner_tokens = tokens[1:-1]
     groups = []
     opening_parenthesis_index = -1
     paren_stack = 0
 
-    for i, token in enumerate(tokens):
+    for i, token in enumerate(inner_tokens):
         if token == "(":
             paren_stack += 1
             if opening_parenthesis_index < 0:
@@ -199,7 +195,7 @@ def _group_tokens(tokens):
                 raise CarlaeSyntaxError()
 
             if paren_stack == 0:
-                groups.append(tokens[opening_parenthesis_index : i + 1])
+                groups.append(inner_tokens[opening_parenthesis_index : i + 1])
                 opening_parenthesis_index = -1
 
             continue
