@@ -292,6 +292,53 @@ def _create_env(env):
     return Environment({}, builtins)
 
 
+class CarlaeFunction:
+    def __init__(self, parameters, body, enclosing_env):
+        self.parameters = parameters
+        self.body = body
+        self.enclosing_env = enclosing_env
+
+    def call(self, arguments):
+
+        # different number of parameters -> error
+        if len(self.parameters) != len(arguments):
+            raise CarlaeEvaluationError()
+
+        # print("calling function")
+
+        # print(arguments)
+
+        # evaluate arguments of function
+        evaluated_arguments = [evaluate(arg, self.enclosing_env) for arg in arguments]
+
+        # print(evaluated_arguments)
+
+        # create environment for function
+        func_env = Environment({}, self.enclosing_env)
+
+        # bind variables to environment
+        for var, val in zip(self.parameters, evaluated_arguments):
+            func_env.set(var, val)
+
+        # print(func_env)
+
+        # evalute the function body in the function environment
+        return_value = evaluate(self.body, func_env)
+
+        # print("return value")
+
+        # print(return_value)
+
+        return return_value
+
+    def __str__(self):
+        return f"parameters: {self.parameters}, body: {self.body}"
+
+
+def create_function(parameters, body, enclosing_env):
+    return CarlaeFunction(parameters, body, enclosing_env)
+
+
 def evaluate(tree, env=None):
     """
     Evaluate the given syntax tree according to the rules of the Carlae
@@ -314,23 +361,25 @@ def evaluate(tree, env=None):
     if isinstance(tree, str):
         return env.get(tree)
 
+    keyword = tree[0]
+
     # variable assignment
-    if tree[0] == ":=":
-        # print("assignment")
-        # print(tree)
+    if keyword == ":=":
+
+        # handle function assignment -> shorthand
 
         # get parts from assignment expression
         _, variable, expression = tree
 
-        assignment_func = env.get(":=")
         evaluated_expression = evaluate(expression, env)
 
-        # print("evaluated expression")
-
-        # print(evaluated_expression)
-
         # set variable binding
-        return assignment_func(variable, evaluated_expression, env)
+        return assignment(variable, evaluated_expression, env)
+    elif keyword == "function":
+        # get parameters and body of function
+        _, parameters, body = tree
+
+        return create_function(parameters, body, env)
 
     # evaluate each expression in the tree
     evaluated_expressions = [evaluate(expression, env) for expression in tree]
@@ -341,6 +390,18 @@ def evaluate(tree, env=None):
 
     # check if first evaluated expression is a function
     func = evaluated_expressions[0]
+
+    # check if it's a CarlaeFunction
+    if isinstance(func, CarlaeFunction):
+        # print("is a carlae function")
+
+        # get the args
+        args = evaluated_expressions[1:]
+
+        # print(args)
+
+        # call the function on the args
+        return func.call(args)
 
     if not callable(func):
         raise CarlaeEvaluationError()
@@ -403,6 +464,18 @@ if __name__ == "__main__":
     # print(global_env)
     # print(builtins)
 
-    # a = run_carlae("(:= x (+ 2 3))")
+    # run_carlae("(:= square (function (x) (* x x)))", global_env)
+    # a = run_carlae("(square 2)", global_env)
 
     # print(a)
+
+    # parsed = parse(tokenize("(function (x y) (+ x y))"))
+
+    # keyword, parameters, body = parsed
+
+    # print(parameters)
+    # print(body)
+
+    # func = create_function(parameters, body, global_env)
+
+    # print(func)
