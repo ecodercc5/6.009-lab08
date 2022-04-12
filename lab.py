@@ -266,8 +266,7 @@ class Environment:
 
         # binding doesn't exist, check if parent env exists
         if not self.parent:
-
-            raise CarlaeNameError()
+            return None
 
         # get variable from parent env
         return self.parent.get(variable)
@@ -300,8 +299,15 @@ class CarlaeFunction:
 
     def call(self, arguments):
 
+        # print("-----")
+        # print(f"calling {self.parameters}")
+        # print(f"args: {arguments}")
+        # print()
+
         # different number of parameters -> error
         if len(self.parameters) != len(arguments):
+            # print(self.parameters)
+            # print(arguments)
             raise CarlaeEvaluationError()
 
         # print("calling function")
@@ -359,14 +365,44 @@ def evaluate(tree, env=None):
         return tree
 
     if isinstance(tree, str):
-        return env.get(tree)
+        val = env.get(tree)
 
+        if val is None:
+            raise CarlaeNameError()
+
+        return val
+
+    if isinstance(tree, CarlaeFunction):
+        # function with no arguments
+        return tree.call([])
+
+    print("tree")
+    print(tree)
     keyword = tree[0]
 
     # variable assignment
     if keyword == ":=":
 
         # handle function assignment -> shorthand
+        is_shorthand_func_def = isinstance(tree[1], list)
+
+        if is_shorthand_func_def:
+            # print("is short hand function def")
+
+            func_name = tree[1][0]
+            parameters = tree[1][1:]
+            body = tree[2]
+
+            # print("parameters")
+            # print(parameters)
+
+            # print(func_name, parameters, body)
+
+            func = create_function(parameters, body, env)
+
+            # print(func)
+
+            return assignment(func_name, func, env)
 
         # get parts from assignment expression
         _, variable, expression = tree
@@ -384,10 +420,6 @@ def evaluate(tree, env=None):
     # evaluate each expression in the tree
     evaluated_expressions = [evaluate(expression, env) for expression in tree]
 
-    # if length of evaluated expressions is 1 return that value
-    if len(evaluated_expressions) == 1:
-        return evaluated_expressions[0]
-
     # check if first evaluated expression is a function
     func = evaluated_expressions[0]
 
@@ -395,13 +427,32 @@ def evaluate(tree, env=None):
     if isinstance(func, CarlaeFunction):
         # print("is a carlae function")
 
+        # print(evaluated_expressions)
+
+        if len(evaluated_expressions) == 1:
+            # function with no arguments
+            return func.call([])
+
         # get the args
+        # [] if evaluated_expressions[1] == [] else evaluated_expressions[1:]
+
         args = evaluated_expressions[1:]
+
+        # args = [] if evaluated_expressions[1] == [] else evaluated_expressions[1:]
+
+        # print("ed shit happened")
+
+        # print(args)
+        # print(args)
 
         # print(args)
 
         # call the function on the args
         return func.call(args)
+
+    # if length of evaluated expressions is 1 return that value
+    if len(evaluated_expressions) == 1:
+        return evaluated_expressions[0]
 
     if not callable(func):
         raise CarlaeEvaluationError()
@@ -456,7 +507,7 @@ if __name__ == "__main__":
     # uncommenting the following line will run doctests from above
     # doctest.testmod()
 
-    run_repl()
+    # run_repl()
 
     builtins = Environment(carlae_builtins)
     global_env = Environment({}, builtins)
@@ -464,18 +515,16 @@ if __name__ == "__main__":
     # print(global_env)
     # print(builtins)
 
-    # run_carlae("(:= square (function (x) (* x x)))", global_env)
-    # a = run_carlae("(square 2)", global_env)
+    a = run_carlae("(:= ham 42)", global_env)
+    print(a)
 
-    # print(a)
+    a = run_carlae(
+        "(:= bacon (function (var100) ((function (var99) ((function (var98) ((function (var97) ((function (var96) ((function (var95) ((function (var94) ((function (var93) ((function (var92) ((function (var91) ((function (var90) ((function (var89) ((function (var88) ((function (var87) ((function (var86) ((function (var85) ((function (var84) ((function (var83) ((function (var82) ((function (var81) ((function (var80) ((function (var79) ((function (var78) ((function (var77) ((function (var76) ((function (var75) ((function (var74) ((function (var73) ((function (var72) ((function (var71) ((function (var70) ((function (var69) ((function (var68) ((function (var67) ((function (var66) ((function (var65) ((function (var64) ((function (var63) ((function (var62) ((function (var61) ((function (var60) ((function (var59) ((function (var58) ((function (var57) ((function (var56) ((function (var55) ((function (var54) ((function (var53) ((function (var52) ((function (ham) ((function (var50) ((function (var49) ((function (var48) ((function (var47) ((function (var46) ((function (var45) ((function (var44) ((function (var43) ((function (var42) ((function (var41) ((function (var40) ((function (var39) ((function (var38) ((function (var37) ((function (var36) ((function (var35) ((function (var34) ((function (var33) ((function (var32) ((function (var31) ((function (var30) ((function (var29) ((function (var28) ((function (var27) ((function (var26) ((function (var25) ((function (var24) ((function (var23) ((function (var22) ((function (var21) ((function (var20) ((function (var19) ((function (var18) ((function (var17) ((function (var16) ((function (var15) ((function (var14) ((function (var13) ((function (var12) ((function (var11) ((function (var10) ((function (var9) ((function (var8) ((function (var7) ((function (var6) ((function (var5) ((function (var4) ((function (var3) ((function (var2) ((function (var1) ((function (var0) ham) 0)) 1)) 2)) 3)) 4)) 5)) 6)) 7)) 8)) 9)) 10)) 11)) 12)) 13)) 14)) 15)) 16)) 17)) 18)) 19)) 20)) 21)) 22)) 23)) 24)) 25)) 26)) 27)) 28)) 29)) 30)) 31)) 32)) 33)) 34)) 35)) 36)) 37)) 38)) 39)) 40)) 41)) 42)) 43)) 44)) 45)) 46)) 47)) 48)) 49)) 50)) (function (x) (+ x x x)))) 52)) 53)) 54)) 55)) 56)) 57)) 58)) 59)) 60)) 61)) 62)) 63)) 64)) 65)) 66)) 67)) 68)) 69)) 70)) 71)) 72)) 73)) 74)) 75)) 76)) 77)) 78)) 79)) 80)) 81)) 82)) 83)) 84)) 85)) 86)) 87)) 88)) 89)) 90)) 91)) 92)) 93)) 94)) 95)) 96)) 97)) 98)) 99)))",
+        global_env,
+    )
 
-    # parsed = parse(tokenize("(function (x y) (+ x y))"))
+    print(a)
 
-    # keyword, parameters, body = parsed
+    a = run_carlae("((bacon 7) 19)", global_env)
 
-    # print(parameters)
-    # print(body)
-
-    # func = create_function(parameters, body, global_env)
-
-    # print(func)
+    print(a)
