@@ -361,7 +361,6 @@ def evaluate(tree, env=None):
 
     # variable assignment
     if keyword == ":=":
-
         # handle function assignment -> shorthand
         is_shorthand_func_def = isinstance(tree[1], list)
 
@@ -372,14 +371,7 @@ def evaluate(tree, env=None):
             parameters = tree[1][1:]
             body = tree[2]
 
-            # print("parameters")
-            # print(parameters)
-
-            # print(func_name, parameters, body)
-
             func = create_function(parameters, body, env)
-
-            # print(func)
 
             return assignment(func_name, func, env)
 
@@ -393,8 +385,6 @@ def evaluate(tree, env=None):
     elif keyword == "function":
         # get parameters and body of function
         _, parameters, body = tree
-
-        print("creating function")
 
         return create_function(parameters, body, env)
 
