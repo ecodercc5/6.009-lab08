@@ -2,6 +2,7 @@
 """6.009 Lab 8: Carlae (LISP) Interpreter"""
 
 import doctest
+import pprint
 
 # NO ADDITIONAL IMPORTS!
 
@@ -149,8 +150,6 @@ def parse(tokens):
     Arguments:
         tokens (list): a list of strings representing tokens
     """
-    # print(tokens)
-
     # base case -> one token
     if len(tokens) == 1:
         # edge case -> single parenthesis
@@ -161,7 +160,6 @@ def parse(tokens):
 
     # recursive case
     groups = _group_tokens(tokens)
-
     parsed_expression = [parse(group) for group in groups]
 
     return parsed_expression
@@ -169,7 +167,6 @@ def parse(tokens):
 
 def _group_tokens(tokens):
     """ """
-
     # check if enclosed in parenthesis
     if tokens[0] != "(" or tokens[-1] != ")":
         raise CarlaeSyntaxError()
@@ -205,8 +202,6 @@ def _group_tokens(tokens):
 
         groups.append([token])
 
-    # print(groups)
-
     if paren_stack > 0:
         raise CarlaeSyntaxError()
 
@@ -236,11 +231,18 @@ def divide(args):
     return value
 
 
+def assignment(variable, value, env):
+    env.set(variable, value)
+
+    return value
+
+
 carlae_builtins = {
     "+": sum,
     "-": lambda args: -args[0] if len(args) == 1 else (args[0] - sum(args[1:])),
     "*": multiply,
     "/": divide,
+    ":=": assignment,
 }
 
 
@@ -249,7 +251,48 @@ carlae_builtins = {
 ##############
 
 
-def evaluate(tree):
+class Environment:
+    def __init__(self, init_bindings, parent_env=None):
+        self.variables = init_bindings
+        self.parent = parent_env
+
+    def get(self, variable):
+        # get the variable binding
+        value = self.variables.get(variable)
+
+        # if binding exists
+        if value:
+            return value
+
+        # binding doesn't exist, check if parent env exists
+        if not self.parent:
+
+            raise CarlaeNameError()
+
+        # get variable from parent env
+        return self.parent.get(variable)
+
+    def set(self, variable, value):
+        """
+        Set a variable binding in the current env
+        """
+
+        self.variables[variable] = value
+
+    def __str__(self):
+        return f"(variables: {pprint.pformat(self.variables)})"
+
+
+def _create_env(env):
+    if env:
+        return env
+
+    builtins = Environment(carlae_builtins)
+
+    return Environment({}, builtins)
+
+
+def evaluate(tree, env=None):
     """
     Evaluate the given syntax tree according to the rules of the Carlae
     language.
@@ -258,6 +301,9 @@ def evaluate(tree):
         tree (type varies): a fully parsed expression, as the output from the
                             parse function
     """
+
+    env = _create_env(env)
+
     if tree == []:
         return []
 
@@ -266,15 +312,28 @@ def evaluate(tree):
         return tree
 
     if isinstance(tree, str):
-        builtin_object = carlae_builtins.get(tree)
+        return env.get(tree)
 
-        if builtin_object:
-            return builtin_object
+    # variable assignment
+    if tree[0] == ":=":
+        # print("assignment")
+        # print(tree)
 
-        raise CarlaeNameError()
+        # get parts from assignment expression
+        _, variable, expression = tree
+
+        assignment_func = env.get(":=")
+        evaluated_expression = evaluate(expression, env)
+
+        # print("evaluated expression")
+
+        # print(evaluated_expression)
+
+        # set variable binding
+        return assignment_func(variable, evaluated_expression, env)
 
     # evaluate each expression in the tree
-    evaluated_expressions = [evaluate(expression) for expression in tree]
+    evaluated_expressions = [evaluate(expression, env) for expression in tree]
 
     # if length of evaluated expressions is 1 return that value
     if len(evaluated_expressions) == 1:
@@ -289,9 +348,44 @@ def evaluate(tree):
     # call the func on rest of evaluated expressions
     evaluated = func(evaluated_expressions[1:])
 
-    # print(evaluated)
-
     return evaluated
+
+
+def result_and_env(tree, env=None):
+    # initialize environment for evaluation
+    current_env = _create_env(env)
+    evaluated = evaluate(tree, current_env)
+
+    return evaluated, current_env
+
+
+def run_carlae(raw_carlae_str, env=None):
+    tokens = tokenize(raw_carlae_str)
+    parsed = parse(tokens)
+    evaluated = result_and_env(parsed, env)
+
+    return evaluated[0]
+
+
+def run_repl():
+    builtins = Environment(carlae_builtins)
+    global_env = Environment({}, builtins)
+
+    while True:
+        raw_carlae_str = input("in> ")
+
+        if raw_carlae_str == "EXIT":
+            break
+
+        try:
+            value = run_carlae(raw_carlae_str, global_env)
+            print(f"out> {value}")
+
+            # print(global_env)
+
+        except Exception as e:
+            exception_name = e.__class__.__name__
+            print(exception_name)
 
 
 if __name__ == "__main__":
@@ -301,19 +395,14 @@ if __name__ == "__main__":
     # uncommenting the following line will run doctests from above
     # doctest.testmod()
 
-    while True:
-        raw_carlae_str = input("in> ")
+    run_repl()
 
-        if raw_carlae_str == "EXIT":
-            break
+    builtins = Environment(carlae_builtins)
+    global_env = Environment({}, builtins)
 
-        try:
-            tokens = tokenize(raw_carlae_str)
-            parsed = parse(tokens)
-            evaluated = evaluate(parsed)
+    # print(global_env)
+    # print(builtins)
 
-            print(f"out> {evaluated}")
+    # a = run_carlae("(:= x (+ 2 3))")
 
-        except Exception as e:
-            exception_name = e.__class__.__name__
-            print(exception_name)
+    # print(a)
